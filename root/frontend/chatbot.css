@@ -1,0 +1,132 @@
+.chat-icon {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  width: 100px;
+  height: 100px;
+  cursor: pointer;
+  background: white;
+  border-radius: 50%;
+  padding: 5px;
+  box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+}
+
+.chat-icon img {
+  width: 100%;
+  border-radius: 50%;
+}
+
+.chat-window {
+  position: fixed;
+  bottom: 90px;
+  right: 25px;
+  width: 350px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0px 4px 20px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  gap: 10px;
+  background: #ffb4d2;
+  border-radius: 10px 10px 0 0;
+  font-weight: bold;
+}
+
+.chat-header img {
+  width: 40px;
+  border-radius: 50%;
+}
+
+.chat-body {
+  padding: 10px;
+  height: 300px;
+  overflow-y: auto;
+}
+
+.chat-input {
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.chat-input button {
+  background: #ff6ea6;
+  border: none;
+  padding: 10px 14px;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chat-input button:nth-child(2) {
+  font-size: 18px;
+}
+.chat-icon::after {
+  content: 'Hello, I am Lora your document assistant';
+  position: fixed; /* This positions it on the screen, like the icon */
+  font-family: 'Inter', sans-serif; /* Matches your site's font */
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  width: 170px;
+  padding: 12px;
+  border-radius: 10px;
+
+  /* Use your site's theme colors! */
+  background: var(--bg-secondary);
+  color: var(--text-headings);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  
+  /* --- Positioning --- */
+  /* (Icon is 100px wide + at right: 25px) */
+  right: 135px; /* 100px icon width + 25px right pos + 10px space */
+  
+  /* (Icon is 100px high + at bottom: 25px) */
+  bottom: 40px; /* 25px icon bottom + 15px up to center it */
+
+  /* (Optional) Add a nice fade-in animation */
+  animation: fadeInBubble 0.5s ease-out forwards;
+}
+
+/* This is the little triangle for the bubble */
+.chat-icon::before {
+  content: '';
+  position: fixed;
+  width: 0;
+  height: 0;
+  
+  /* This creates a triangle pointing right */
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 10px solid var(--bg-secondary); /* Matches bubble background */
+
+  /* --- Positioning --- */
+  /* (Bubble is at right: 135px) */
+  right: 125px; /* 135px bubble right - 10px triangle width */
+  
+  /* (Bubble is at bottom: 40px) */
+  bottom: 55px; /* Moves it down to the middle of the bubble */
+
+  /* Add a nice fade-in animation */
+  animation: fadeInBubble 0.5s ease-out forwards;
+}
+
+/*  Keyframe for the animation */
+@keyframes fadeInBubble {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
