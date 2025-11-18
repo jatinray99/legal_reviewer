@@ -101,7 +101,12 @@
     <div id="root"></div>
     <script>
       // Define a global, foolproof API URL for the application
-      window.API_BASE_URL = 'http://localhost:3001';
+      const replitDomain = window.location.hostname;
+      if (replitDomain.includes('replit.dev')) {
+        window.API_BASE_URL = `https://${replitDomain.replace('-00-', '-01-')}`;
+      } else {
+        window.API_BASE_URL = 'http://localhost:3001';
+      }
     </script>
     <script type="module" src="/index.tsx"></script>
   </body>

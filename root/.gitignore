@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Build outputs
+build/
+.cache/
+
+# Database
+*.db
+*.sqlite
+
+# Misc
+frontend.zip
+.gitignore.root

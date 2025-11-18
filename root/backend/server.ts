@@ -86,6 +86,9 @@ const aiCallQueue = new AiCallQueue();
 // --- In-Memory Storage ---
 const templateLibrary = new Map<string, ContractTemplate>();
 
+// In-memory fallback storage when database is not available
+const contractDatabase: Contract[] = [];
+
 // --- Setup Multer ---
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -101,8 +104,6 @@ interface Contract {
   uploadedAt: Date;
 }
 // --- END MODIFICATION ---
-
-// --- MODIFICATION: REMOVED the in-memory 'contractDatabase' array ---
 
 
 const getHumanReadableExpiry = (puppeteerCookie: PuppeteerCookie): string => {
@@ -1947,20 +1948,27 @@ app.post('/api/chat-with-document', async (req: Request, res: Response) => {
 
 // --- CONTRACT & DASHBOARD ENDPOINTS ---
 
-// --- MODIFICATION: Read from the real database ---
+// --- MODIFICATION: Read from the real database or in-memory fallback ---
 app.get('/api/contracts', async (req: Request, res: Response) => {
-    console.log('[SERVER] Serving contract list from database.');
+    console.log('[SERVER] Serving contract list.');
     try {
-        const sortedContracts = await db('contracts').orderBy('uploadedAt', 'desc');
-        res.json(sortedContracts);
+        if (db) {
+            const sortedContracts = await db('contracts').orderBy('uploadedAt', 'desc');
+            res.json(sortedContracts);
+        } else {
+            const sortedContracts = [...contractDatabase].sort((a, b) => 
+                new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+            );
+            res.json(sortedContracts);
+        }
     } catch (err: any) {
         console.error('[SERVER] Error fetching contracts:', err.message);
-        res.status(500).json({ error: 'Failed to fetch contracts from database.' });
+        res.status(500).json({ error: 'Failed to fetch contracts.' });
     }
 });
 // --- END MODIFICATION ---
 
-// --- MODIFICATION: Write to the real database ---
+// --- MODIFICATION: Write to the real database or in-memory fallback ---
 app.post('/api/contracts/upload', upload.single('contractFile'), async (req: Request, res: Response) => {
     try {
         const { partyName, contractType } = req.body;
@@ -1976,21 +1984,25 @@ app.post('/api/contracts/upload', upload.single('contractFile'), async (req: Req
         console.log(`[SERVER] Received file upload: ${file.originalname}`);
         console.log(`[SERVER] Metadata: PartyName=${partyName}, ContractType=${contractType}`);
 
-        const newContract = {
-            id: `c${Date.now()}`, // Using timestamp for a simple unique ID
+        const newContract: Contract = {
+            id: `c${Date.now()}`,
             partyName: partyName,
             contractType: contractType,
-            status: 'In Review', // New contracts default to "In Review"
+            status: 'In Review',
             fileName: file.originalname,
-            // 'uploadedAt' will be set by the database default
+            uploadedAt: new Date(),
         };
 
-        // Add to our "database"
-        await db('contracts').insert(newContract);
-        const savedContract = await db('contracts').where({ id: newContract.id }).first();
-
-        console.log(`[SERVER] Added new contract to database.`);
-        res.status(201).json(savedContract);
+        if (db) {
+            await db('contracts').insert(newContract);
+            const savedContract = await db('contracts').where({ id: newContract.id }).first();
+            console.log(`[SERVER] Added new contract to database.`);
+            res.status(201).json(savedContract);
+        } else {
+            contractDatabase.push(newContract);
+            console.log(`[SERVER] Added new contract to in-memory storage.`);
+            res.status(201).json(newContract);
+        }
 
     } catch (error) {
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -2001,24 +2013,33 @@ app.post('/api/contracts/upload', upload.single('contractFile'), async (req: Req
 // --- END MODIFICATION ---
 
 
-// --- MODIFICATION: Make dashboard analytics dynamic ---
+// --- MODIFICATION: Make dashboard analytics dynamic with fallback ---
 app.get('/api/dashboard-analytics', async (req: Request, res: Response) => {
-    console.log('[SERVER] Serving DYNAMIC dashboard analytics data from database.');
+    console.log('[SERVER] Serving dashboard analytics data.');
 
     try {
-        // 1. Calculate Contract Types dynamically from database
-        const contractTypeCounts: { contractType: string; count: number }[] = await db('contracts')
-          .select('contractType')
-          .count('* as count')
-          .groupBy('contractType');
+        let dynamicContractTypes: { name: string; count: number }[] = [];
+        
+        if (db) {
+            const contractTypeCounts: { contractType: string; count: number }[] = await db('contracts')
+              .select('contractType')
+              .count('* as count')
+              .groupBy('contractType');
 
-        const dynamicContractTypes = contractTypeCounts.map(item => ({
-          name: item.contractType,
-          // Knex count can return as string or BigInt, ensure it's a number
-          count: Number(item.count), 
-        })).sort((a, b) => b.count - a.count); // Sort by most common
+            dynamicContractTypes = contractTypeCounts.map(item => ({
+              name: item.contractType,
+              count: Number(item.count), 
+            })).sort((a, b) => b.count - a.count);
+        } else {
+            const typeCounts = new Map<string, number>();
+            contractDatabase.forEach(contract => {
+                typeCounts.set(contract.contractType, (typeCounts.get(contract.contractType) || 0) + 1);
+            });
+            dynamicContractTypes = Array.from(typeCounts.entries())
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count);
+        }
 
-        // 2. Keep other analytics as mock data (since we don't store this info yet)
         const mockAlerts = [
             { name: 'Up for Renewal', count: 14 },
             { name: 'Terminating Within 1 Year', count: 7 },
@@ -2039,12 +2060,11 @@ app.get('/api/dashboard-analytics', async (req: Request, res: Response) => {
 
         const dynamicAnalytics = {
             contractTypes: dynamicContractTypes.length > 0 ? dynamicContractTypes : [],
-            alerts: mockAlerts, // This is still mock data
-            autoRenewal: mockAutoRenewal, // This is still mock data
-            terminationForConvenience: mockTermination, // This is still mock data
+            alerts: mockAlerts,
+            autoRenewal: mockAutoRenewal,
+            terminationForConvenience: mockTermination,
         };
 
-        // Add a slight delay to simulate a real API call
         setTimeout(() => {
             res.json(dynamicAnalytics);
         }, 500);
