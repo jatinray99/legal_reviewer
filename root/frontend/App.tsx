@@ -1,19 +1,16 @@
-import React, { useState, useCallback, useEffect } from 'react';
-// --- MODIFICATION: Import new components and icons ---
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { AuthProvider, useAuth } from '.\services\AuthContext';
 import { 
-  CookieCareLogo, SunIcon, MoonIcon, CheckCircleIcon, ScaleIcon, ShieldCheckIcon, 
-  DocumentTextIcon
+  CookieCareLogo, SunIcon, MoonIcon, CheckCircleIcon, ScaleIcon, ShieldCheckIcon 
 } from './components/Icons';
-import { CookieScannerView } from './components/CookieScannerView';
-import { LegalReviewerView } from './components/LegalReviewerView';
-import { VulnerabilityScannerView } from './components/VulnerabilityScannerView';
-// --- END MODIFICATION ---
-
-// --- FIX #1: Import the chatbot and its CSS at the top ---
 import LoraChatbot from "./components/LoraChatbot";
-import './chatbot.css'; // Assuming 'chatbot.css' is at the root
-// --- END FIX #1 ---
+import './chatbot.css'; 
 
+// --- LAZY LOADING: These files are now only downloaded when clicked ---
+const CookieScannerView = lazy(() => import('./components/CookieScannerView'));
+// Note: LegalReviewerView will now contain the complex Tabs (Repository, Negotiation, etc.)
+const LegalReviewerView = lazy(() => import('./components/LegalReviewerView'));
+const VulnerabilityScannerView = lazy(() => import('./components/VulnerabilityScannerView'));
 
 const ThemeToggle: React.FC<{ theme: string, toggleTheme: () => void }> = ({ theme, toggleTheme }) => (
     <button
@@ -25,11 +22,37 @@ const ThemeToggle: React.FC<{ theme: string, toggleTheme: () => void }> = ({ the
     </button>
 );
 
+// --- LOGIN COMPONENT ---
+const LoginScreen = () => {
+  const { loginWithGoogle } = useAuth();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+      <div className="bg-[var(--bg-tertiary)] p-8 rounded-lg shadow-xl text-center max-w-md w-full border border-[var(--border-primary)]">
+        <CookieCareLogo className="h-16 w-auto text-brand-blue mx-auto mb-6" />
+        <h2 className="text-2xl font-bold text-[var(--text-headings)] mb-2">Welcome Back</h2>
+        <p className="text-[var(--text-primary)] mb-8">Sign in to access your secure Legal Workspace</p>
+        <button 
+          onClick={loginWithGoogle}
+          className="w-full bg-brand-blue hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition duration-200 flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-6.98 7.2-6.98 3.5 0 4.92 2.23 5.96 4.07l2.55-2.73C18.9 3.78 16.07 2 12.2 2 6.3 2 2 6.5 2 12.25c0 5.75 4.3 10.25 10.2 10.25 5.85 0 9.72-4.18 9.72-10.25c0-.54-.07-1.08-.19-1.15z"/></svg>
+          Sign in with Google
+        </button>
+      </div>
+    </div>
+  );
+};
+
 type View = 'scanner' | 'legal' | 'vulnerability';
 
-const App: React.FC = () => {
+// --- AUTH PROTECTED APP CONTENT ---
+const ProtectedApp: React.FC = () => {
+  const { currentUser, logout } = useAuth();
   const [theme, setTheme] = useState('dark');
   const [activeView, setActiveView] = useState<View>('legal');
+
+  // Redirect if not logged in
+  if (!currentUser) return <LoginScreen />;
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -54,47 +77,32 @@ const App: React.FC = () => {
               ? 'bg-brand-blue text-white shadow-sm' 
               : 'text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
           }`}
-          aria-current={isActive ? 'page' : undefined}
        >
         {icon}
         <span>{label}</span>
       </button>
     )
   }
-  
-  const descriptions: Record<View, string> = {
-    scanner: "Real-time reports on cookies, trackers, and potential compliance issues for GDPR & CCPA.",
-    legal: "AI-powered contract analysis, drafting, and negotiation assistance.",
-    vulnerability: "AI-driven security scans to find website vulnerabilities and get remediation plans.",
-  }
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] font-sans text-[var(--text-primary)] flex flex-col">
-      {/* --- THIS IS YOUR ORIGINAL HEADER CONTENT (RESTORED) --- */}
       <header className="bg-[var(--bg-primary)]/80 backdrop-blur-sm sticky top-0 z-50 border-b border-[var(--border-primary)]">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <CookieCareLogo className="h-8 w-auto text-brand-blue" />
             <h1 className="text-xl font-bold text-[var(--text-headings)] tracking-tight">
-              Cookie Care
+              Cookie Care <span className="text-xs font-normal opacity-60 ml-2">| {currentUser.email}</span>
             </h1>
           </div>
-          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          <div className="flex items-center gap-4">
+            <button onClick={logout} className="text-sm hover:text-red-400">Sign Out</button>
+            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          </div>
         </nav>
       </header>
 
-      {/* --- THIS IS YOUR ORIGINAL MAIN CONTENT (RESTORED) --- */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex-grow">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-[var(--text-headings)] leading-tight">
-            Holistic Compliance Analysis Engine
-          </h2>
-          <p className="mt-4 text-lg text-[var(--text-primary)] max-w-2xl mx-auto">
-            {descriptions[activeView]}
-          </p>
-        </div>
-        
-        <div className="max-w-5xl mx-auto mt-10">
+        <div className="max-w-5xl mx-auto mt-4 mb-8">
           <div className="flex justify-center items-center p-1.5 bg-[var(--bg-tertiary)] rounded-lg space-x-2 flex-wrap">
             <NavTab view="legal" label="Legal Review" icon={<ScaleIcon className="h-5 w-5" />} />
             <NavTab view="scanner" label="Cookie Scanner" icon={<CheckCircleIcon className="h-5 w-5"/>} />
@@ -102,23 +110,28 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="mt-8">
+        {/* Suspense handles the "Loading..." state while waiting for the heavy chunks */}
+        <Suspense fallback={<div className="flex justify-center p-12"><div className="animate-spin h-8 w-8 border-4 border-brand-blue rounded-full border-t-transparent"></div></div>}>
             {activeView === 'scanner' && <CookieScannerView />}
             {activeView === 'legal' && <LegalReviewerView />}
             {activeView === 'vulnerability' && <VulnerabilityScannerView />}
-        </div>
+        </Suspense>
       </main>
 
-      {/* --- THIS IS YOUR ORIGINAL FOOTER (RESTORED) --- */}
       <footer className="text-center py-6 text-sm text-[var(--text-primary)]/80">
         <p>&copy; {new Date().getFullYear()} Cookie Care. All rights reserved.</p>
       </footer>
 
-      {/* --- THIS IS THE CHATBOT, IN THE CORRECT PLACE --- */}
       <LoraChatbot />
-      
     </div>
   );
 };
+
+// Wrap everything in AuthProvider
+const App = () => (
+  <AuthProvider>
+    <ProtectedApp />
+  </AuthProvider>
+);
 
 export default App;
